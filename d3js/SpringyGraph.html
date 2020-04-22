@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<body>
+<h1> A graph of emails </h1>
+<p> Nodes show individual people sending emails. Size is 
+proportional to the number of emails sent, color is related 
+to recency (most recent senders are yellow, older are red). 
+Note how clusters are visually distinct. Point at any node for 
+details.</p>
+
+<!--See book text for a detailed explanation-->
+<!--First, load the JavaScript visualization library d3.js-->
+<script src="http://d3js.org/d3.v3.min.js"></script>
+
+<!--Second, this is a graph dataset of emails, in javascript format-->
+<script src="familyEmail.js"></script>
+
+<!--Third, this is the main script that configures the graph and handles events-->
+<script>
+
+//This is a smaller sample dataset showing how the data is organized and formatted. 
+//it is commented out here, instead using the larger dataset above. 
+//graph = {
+// "nodes":[
+//	{"Id":"Ann","NumEmail":1,"SumSize":100},
+//	{"Id":"Ben","NumEmail":4,"SumSize":500},
+//	{"Id":"Tim","NumEmail":2,"SumSize":200},
+//	{"Id":"Zoe","NumEmail":3,"SumSize":400},
+//	{"Id":"Joe","NumEmail":1,"SumSize":50}
+//  ],
+// "links":[
+//	{"source":0,"target":1,"NumEmail":1,"SumSize":100},
+//	{"source":1,"target":2,"NumEmail":1,"SumSize":100},
+//	{"source":2,"target":3,"NumEmail":1,"SumSize":100},
+//	{"source":1,"target":3,"NumEmail":2,"SumSize":300}
+//  ]
+//}
+
+// calculate min/max values
+var minEmail = 0, maxEmail = 0, 
+	minRecent = 0, maxRecent = 0;
+for (var i = 0; i < graph.nodes.length; i++) {
+	var minEmail = Math.min(minEmail, graph.nodes[i].numEmail);
+	var maxEmail = Math.max(maxEmail, graph.nodes[i].numEmail);
+	var minRecent = Math.min(minRecent, graph.nodes[i].recency);
+	var maxRecent = Math.max(maxRecent, graph.nodes[i].recency);
+}
+
+// set up a size scale and a color scale
+var nodesize = d3.scale.sqrt()
+	.domain([minEmail,maxEmail])
+	.range([2,15]);
+var nodecolor = d3.scale.linear()
+	.domain([minRecent,maxRecent])
+	.range(["yellow","red"]);
+
+// set up the graph drawing area, adding an SVG element to the page
+var width = 700;
+var height = 700;
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+	
+// set up the force system, using d3's built-in force layout
+var force = d3.layout.force()
+    .charge(-250)
+    .linkDistance(100)
+    .size([width, height]);
+force.nodes(graph.nodes)
+     .links(graph.links)
+     .start();
+
+// angle and radius for layout assistance
+var ang = 2 * Math.PI / graph.nodes.length;
+var rad = width / 2.5 ;
+
+// create the links. This adds all the links to the SVG element.
+var link = svg.selectAll("line").data(graph.links).enter().append("line")
+  .style("stroke", "blue")
+  .style("stroke-opacity", 0.25)
+  .style("stroke-width", function(d) { return d.weight *0.2; })
+  .attr("x1", function(d) { return(rad * Math.cos(d.source*ang) +.5*width); })
+  .attr("y1", function(d) { return(rad * Math.sin(d.source*ang) +.5*width); })
+  .attr("x2", function(d) { return(rad * Math.cos(d.target*ang) +.5*width); })
+  .attr("y2", function(d) { return(rad * Math.sin(d.target*ang) +.5*width); }); 
+  
+// create the nodes in the scene. Actually puts the nodes in a circular layout. 
+var node = svg.selectAll("circle").data(graph.nodes).enter().append("circle")
+  .attr("r", function(d) { return nodesize(d.numEmail); })
+  .attr("fill", function(d) { return nodecolor(d.recency); })
+  .attr("stroke", "white")
+  .attr("cx", function(d,i) { return(rad * Math.cos(i*ang) + .5*width); })
+  .attr("cy", function(d,i) { return(rad * Math.sin(i*ang) + .5*width); });
+
+// add labels to the same coordinates as the node cirlces 
+var label = svg.selectAll("label").data(graph.nodes).enter().append("text")
+  .attr("text-anchor", "middle")
+  .attr("font-family", "Arial")
+  .attr("dy", "0.5em")
+  .attr("font-size", function(d) {return nodesize(d.numEmail); })
+  .text(function(d) { return d.shortname; })
+  .call(force.drag);
+ 
+// "title" is an attribute that acts like a tooltip.
+label.append("title")
+  .text(function(d) { return d.name + "\n # email: " + d.numEmail; });
+  
+node.append("title")
+  .text(function(d) { return d.name + "\n # email: " + d.numEmail; });
+  
+// force.on gets called each time the force system updates. Here the 
+// position for the links, nodes and labels get updated to the values
+// created by the force system.    
+force.on("tick", function() {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    node.attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; });
+		
+	label.attr("x", function(d) { return d.x; })
+         .attr("y", function(d) { return d.y; });
+  });
+	  
+</script>
+</body>
